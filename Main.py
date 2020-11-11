@@ -14,34 +14,44 @@ options.add_argument('--disable-gpu')
 PATH = "C:\Program Files (x86)\chromedriver.exe"
 
 #array of bools to track what sizes are instock
-lastKnownStock = [False, False, False, False, False, False, False, False]
+lastKnownStock = []
 
 #function to check stock of item
 def checkStock(url):
-    driver = webdriver.Chrome(PATH, chrome_options=options)
+    driver = webdriver.Chrome(PATH, options=options)
     driver.get(url)
-    elements = driver.find_elements_by_class_name("visually-hidden")
-    sizeList = ["UK 3", "UK 3.5", "UK 4", "UK 4.5", "UK 5", "UK 5.5", "UK 6", "UK 6.5"]
-    newStock = []
+    elements = driver.find_elements_by_name("skuAndSize")
+    sizes = driver.find_elements_by_class_name("css-xf3ahq")
+    name = driver.find_element_by_id("pdp_product_title")
+    sizeList = []
+    newStock = ["**" + name.get_attribute("innerHTML") + "**"]
+    
+    for i in sizes:
+        sizeList.append(i.get_attribute("innerHTML"))
+        lastKnownStock.append(False)
 
     if driver.current_url == url:
-        if elements[2].is_enabled():
-            elementCounter = 3
-            sizeCounter = 0
-            for i in elements:
-                if elementCounter <= 10:
-                    if elements[elementCounter].is_enabled():
-                        if lastKnownStock[sizeCounter] != True:
-                            lastKnownStock[sizeCounter] = True
-                            newStock.append(sizeList[sizeCounter])
-                    else:
-                        if lastKnownStock[sizeCounter] == True:
-                            lastKnownStock[sizeCounter] = False
-                    elementCounter += 1 
-                    sizeCounter += 1
-            driver.quit()
-    return newStock
-   
+        counter = 0
+        restockCount = 0
+        for i in elements:
+            try:
+                if elements[counter].is_enabled():
+                    if lastKnownStock[counter] != True:
+                        lastKnownStock[counter] = True
+                        newStock.append(sizeList[counter])
+                        restockCount += 1
+                else:
+                    if lastKnownStock[counter] == True:
+                        lastKnownStock[counter] = False
+            except:
+                pass
+            counter += 1 
+        driver.quit()
+        if restockCount > 0:
+            print(restockCount, "new restock(s) detected - check Discord")
+    return newStock  
+
+
 #function to send embed to discord webhook
 def sendWebhook(urlInp, titleInp, descriptionInp):
     url =  urlInp
@@ -62,16 +72,23 @@ def sendWebhook(urlInp, titleInp, descriptionInp):
         print(err)
 
 #infinite loop - checks for restocks every 2-3 hours
+print("""    _   ___ __           ____            __             __      __  ___            _ __            
+   / | / (_) /_____     / __ \___  _____/ /_____  _____/ /__   /  |/  /___  ____  (_) /_____  _____
+  /  |/ / / //_/ _ \   / /_/ / _ \/ ___/ __/ __ \/ ___/ //_/  / /|_/ / __ \/ __ \/ / __/ __ \/ ___/
+ / /|  / / ,< /  __/  / _, _/  __(__  ) /_/ /_/ / /__/ ,<    / /  / / /_/ / / / / / /_/ /_/ / /    
+/_/ |_/_/_/|_|\___/  /_/ |_|\___/____/\__/\____/\___/_/|_|  /_/  /_/\____/_/ /_/_/\__/\____/_/ """)
+
+url = input("\n\nPlease input the url to check: ")
+webhook = input("Please input webhook for restock alerts: ")
 runForever = True
 while runForever == True:
-    detectedStock = checkStock("https://www.nike.com/gb/t/air-force-i-06-shoe-vXJB1w/314192-117")
-    if len(detectedStock) > 0:
-        embedDescription = "New Stock Detected: \n"
+    detectedStock = checkStock(url)
+    if len(detectedStock) > 1:
+        embedDescription = ""
         for i in detectedStock:
-            embedDescription = embedDescription + "\n" + i
-        sendWebhook("https://discordapp.com/api/webhooks/775142172285730826/c0mpZ21UdMQUX2hIz9tClrTMoOiaYB9Ad_Rw1uUILJjoscDlTrJhcM6xOQ0oqn3UAoYl", "Nike Air Force 1 (GS)", embedDescription)
+            embedDescription = embedDescription +"\n" + i
+        sendWebhook(webhook, "Restock Detected", embedDescription)
     print("Last checked at", datetime.now())
-    wait = random.randint(7200, 10800)
+    wait = random.randint(90, 120)
     time.sleep(wait)
 
-    #https://www.nike.com/gb/t/air-force-i-06-shoe-vXJB1w/314192-117
