@@ -89,6 +89,6 @@ while runForever == True:
             embedDescription = embedDescription +"\n" + i
         sendWebhook(webhook, "Restock Detected", embedDescription)
     print("Last checked at", datetime.now())
-    wait = random.randint(90, 120)
+    wait = random.randint(7200, 10800)
     time.sleep(wait)
 
